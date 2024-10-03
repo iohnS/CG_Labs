@@ -127,33 +127,31 @@ parametric_shapes::createSphere(float const radius,
                                 unsigned int const longitude_split_count,
                                 unsigned int const latitude_split_count)
 {
-	auto const spread_length = 0.75f;
-	auto const circle_slice_edges_count = longitude_split_count + 1u;
-	auto const spread_slice_edges_count = latitude_split_count + 1u;
-	auto const circle_slice_vertices_count = circle_slice_edges_count + 1u;
-	auto const spread_slice_vertices_count = spread_slice_edges_count + 1u;
-	auto const vertices_nb = circle_slice_vertices_count * spread_slice_vertices_count;
+	auto const longitude_slice_edges_count = longitude_split_count + 1u;
+	auto const latitude_slice_edges_count = latitude_split_count + 1u;
+	auto const longitude_slice_vertices_count = longitude_slice_edges_count + 1u;
+	auto const latitude_slice_vertices_count = latitude_slice_edges_count + 1u;
+	auto const vertices_nb = longitude_slice_vertices_count * latitude_slice_vertices_count;
 
     auto vertices  = std::vector<glm::vec3>(vertices_nb);
     auto normals   = std::vector<glm::vec3>(vertices_nb);
-    auto texcoords = std::vector<glm::vec2>(vertices_nb);
+    auto texcoords = std::vector<glm::vec3>(vertices_nb);
     auto tangents  = std::vector<glm::vec3>(vertices_nb);
     auto binormals = std::vector<glm::vec3>(vertices_nb);
 
-	float const spread_start = radius - 0.5f * spread_length;
-	float const d_theta = glm::two_pi<float>() / (static_cast<float>(circle_slice_edges_count));
-	float const d_phi = glm::pi<float>() / static_cast<float>(spread_slice_edges_count);
+	float const d_theta = glm::two_pi<float>() / (static_cast<float>(longitude_slice_edges_count));
+	float const d_phi = glm::pi<float>() / static_cast<float>(latitude_slice_edges_count);
 
 	// generate vertices iteratively
 	size_t index = 0u;
-	float theta = 0.0f;
-	for (unsigned int i = 0u; i < circle_slice_vertices_count; ++i) {
+	float theta = 0.0f; // x
+	for (unsigned int i = 0u; i < longitude_slice_vertices_count; ++i) {
 		float const cos_theta = std::cos(theta);
 		float const sin_theta = std::sin(theta);
 
-
-		float phi = 0.0f;
-		for (unsigned int j = 0u; j < spread_slice_vertices_count; ++j) {
+		std::cout << i << std::endl;
+		float phi = 0.0f; // y
+		for (unsigned int j = 0u; j < latitude_slice_vertices_count; ++j) {
 			float const sin_phi = std::sin(phi);
 			float const cos_phi = std::cos(phi);
 			// vertex
@@ -162,9 +160,9 @@ parametric_shapes::createSphere(float const radius,
 			                            radius * cos_theta * sin_phi);
 
 			// texture coordinates
-			texcoords[index] = glm::vec3(static_cast<float>(j) / (static_cast<float>(spread_slice_vertices_count)),
-			                             static_cast<float>(i) / (static_cast<float>(circle_slice_vertices_count)),
-			                             0.0f);
+			texcoords[index] = glm::vec3(static_cast<float>(i) / (static_cast<float>(latitude_slice_vertices_count)),
+				static_cast<float>(j) / (static_cast<float>(longitude_slice_vertices_count)),
+				0.0f);
 
 			// tangent
 			//auto const t = glm::vec3(radius * cos_theta * sin_phi, 0.0f, -radius * sin_theta * sin_phi);
@@ -187,22 +185,22 @@ parametric_shapes::createSphere(float const radius,
 	}
 
 	// create index array
-	auto index_sets = std::vector<glm::uvec3>(2u * circle_slice_edges_count * spread_slice_edges_count);
+	auto index_sets = std::vector<glm::uvec3>(2u * longitude_slice_edges_count * latitude_slice_edges_count);
 
 	// generate indices iteratively
 	index = 0u;
-	for (unsigned int i = 0u; i < circle_slice_edges_count; ++i)
+	for (unsigned int i = 0u; i < longitude_slice_edges_count; ++i)
 	{
-		for (unsigned int j = 0u; j < spread_slice_edges_count; ++j)
+		for (unsigned int j = 0u; j < latitude_slice_edges_count; ++j)
 		{
-			index_sets[index] = glm::uvec3(spread_slice_vertices_count * (i + 0u) + (j + 0u),
-			                               spread_slice_vertices_count * (i + 0u) + (j + 1u),
-			                               spread_slice_vertices_count * (i + 1u) + (j + 1u));
+			index_sets[index] = glm::uvec3(latitude_slice_vertices_count * (i + 0u) + (j + 0u),
+			                               latitude_slice_vertices_count * (i + 0u) + (j + 1u),
+			                               latitude_slice_vertices_count * (i + 1u) + (j + 1u));
 			++index;
 
-			index_sets[index] = glm::uvec3(spread_slice_vertices_count * (i + 0u) + (j + 0u),
-			                               spread_slice_vertices_count * (i + 1u) + (j + 1u),
-			                               spread_slice_vertices_count * (i + 1u) + (j + 0u));
+			index_sets[index] = glm::uvec3(latitude_slice_vertices_count * (i + 0u) + (j + 0u),
+			                               latitude_slice_vertices_count * (i + 1u) + (j + 1u),
+			                               latitude_slice_vertices_count * (i + 1u) + (j + 0u));
 			++index;
 		}
 	}

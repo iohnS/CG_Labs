@@ -100,7 +100,7 @@ edaf80::Assignment3::run()
 	//
 	// Set up the two spheres used.
 	//
-	auto skybox_shape = parametric_shapes::createSphere(20.0f, 100u, 100u);
+	auto skybox_shape = parametric_shapes::createSphere(20.0f, 10u, 10u);
 	if (skybox_shape.vao == 0u) {
 		LogError("Failed to retrieve the mesh for the skybox");
 		return;
