@@ -91,6 +91,13 @@ edaf80::Assignment3::run()
 	if (skybox_shader == 0u)
 		LogError("Failed to load skybox shader");
 
+	GLuint phong_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Phong",
+		{ { ShaderType::vertex, "EDAF80/phong.vert" },
+		  { ShaderType::fragment, "EDAF80/phong.frag" } },
+		phong_shader);
+	if (phong_shader == 0u)
+		LogError("Failed to load phong shader");
 
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 	auto const set_uniforms = [&light_position](GLuint program){
@@ -153,7 +160,7 @@ edaf80::Assignment3::run()
 	Node demo_sphere;
 	demo_sphere.set_geometry(demo_shape);
 	demo_sphere.set_material_constants(demo_material);
-	demo_sphere.set_program(&skybox_shader, phong_set_uniforms);
+	demo_sphere.set_program(&phong_shader, phong_set_uniforms);
 	demo_sphere.add_texture("phong_cubemap", phong_cubemap, GL_TEXTURE_CUBE_MAP);
 
 	Node white_sphere;
@@ -234,6 +241,7 @@ edaf80::Assignment3::run()
 
 
 		skybox.render(mCamera.GetWorldToClipMatrix());
+		//white_sphere.render(mCamera.GetWorldToClipMatrix());
 		demo_sphere.render(mCamera.GetWorldToClipMatrix());
 
 
