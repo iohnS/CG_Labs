@@ -91,6 +91,7 @@ edaf80::Assignment3::run()
 	if (skybox_shader == 0u)
 		LogError("Failed to load skybox shader");
 
+
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 	auto const set_uniforms = [&light_position](GLuint program){
 		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
@@ -134,6 +135,15 @@ edaf80::Assignment3::run()
 		return;
 	}
 
+	GLuint phong_cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg")
+	);
+
 	bonobo::material_data demo_material;
 	demo_material.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
 	demo_material.diffuse = glm::vec3(0.7f, 0.2f, 0.4f);
@@ -143,7 +153,13 @@ edaf80::Assignment3::run()
 	Node demo_sphere;
 	demo_sphere.set_geometry(demo_shape);
 	demo_sphere.set_material_constants(demo_material);
-	demo_sphere.set_program(&fallback_shader, phong_set_uniforms);
+	demo_sphere.set_program(&skybox_shader, phong_set_uniforms);
+	demo_sphere.add_texture("phong_cubemap", phong_cubemap, GL_TEXTURE_CUBE_MAP);
+
+	Node white_sphere;
+	white_sphere.set_geometry(demo_shape);
+	white_sphere.set_material_constants(demo_material);
+	white_sphere.set_program(&fallback_shader, set_uniforms);
 
 
 	glClearDepthf(1.0f);
