@@ -38,7 +38,7 @@ void main()
     vec3 diffuse = diffuse_colour * texture(diffuse_map, fs_in.tex_coord).xyz * max(dot(N,L),0.0);
 
     // Specular
-    vec3 specular = specular_colour * pow(max(dot(R,V),0.0), shininess_value);
+    vec3 specular = specular_colour * texture(specular_map, fs_in.tex_coord).xyz * pow(max(dot(R,V),0.0), shininess_value);
 
     fColor.xyz = (ambient_colour + diffuse + specular);
     fColor.w = 1.0;
