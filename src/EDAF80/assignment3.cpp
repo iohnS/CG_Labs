@@ -244,7 +244,7 @@ edaf80::Assignment3::run()
 
 		glDisable(GL_DEPTH_TEST);
 		//skybox.render(mCamera.GetWorldToClipMatrix());
-		skybox.render(mCamera.GetViewToClipMatrix());
+		skybox.render(mCamera.GetViewToClipMatrix() * glm::mat4(glm::mat3(mCamera.GetWorldToViewMatrix())));
 		glEnable(GL_DEPTH_TEST);
 		//white_sphere.render(mCamera.GetWorldToClipMatrix());
 		demo_sphere.render(mCamera.GetWorldToClipMatrix());
