@@ -242,8 +242,10 @@ edaf80::Assignment3::run()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		bonobo::changePolygonMode(polygon_mode);
 
-
-		skybox.render(mCamera.GetWorldToClipMatrix());
+		glDisable(GL_DEPTH_TEST);
+		//skybox.render(mCamera.GetWorldToClipMatrix());
+		skybox.render(mCamera.GetViewToClipMatrix());
+		glEnable(GL_DEPTH_TEST);
 		//white_sphere.render(mCamera.GetWorldToClipMatrix());
 		demo_sphere.render(mCamera.GetWorldToClipMatrix());
 
