@@ -19,6 +19,10 @@ namespace parametric_shapes
 	//!                             you two edges, and so on.
 	//! @return wrapper around OpenGL objects' name containing the geometry
 	//!         data
+	bonobo::mesh_data createTessQuad(float const width, float const height,
+	                                 unsigned int const horizontal_split_count,
+	                                 unsigned int const vertical_split_count);
+	
 	bonobo::mesh_data createQuad(float const width, float const height,
 	                             unsigned int const horizontal_split_count = 0u,
 	                             unsigned int const vertical_split_count = 0u);

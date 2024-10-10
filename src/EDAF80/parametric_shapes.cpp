@@ -10,6 +10,80 @@
 #include <vector>
 
 bonobo::mesh_data
+parametric_shapes::createTessQuad(float const width, float const height,
+							  unsigned int const horizontal_split_count,
+							  unsigned int const vertical_split_count)
+{
+	auto const horizontal_vertices_count = horizontal_split_count + 1u;
+	auto const vertical_vertices_count = vertical_split_count + 1u;
+	auto const vertices_nb = horizontal_vertices_count * vertical_vertices_count;
+
+	auto vertices = std::vector<glm::vec3>(vertices_nb);
+	auto texcoords = std::vector<glm::vec2>(vertices_nb);
+
+	float const dx = width / static_cast<float>(horizontal_split_count);
+	float const dz = height / static_cast<float>(vertical_split_count);
+
+	size_t index = 0u;
+	for (unsigned int i = 0u; i < horizontal_vertices_count; ++i) {
+		for (unsigned int j = 0u; j < vertical_vertices_count; ++j) {
+			vertices[index] = glm::vec3(i * dx, 0.0f, j * dz);
+			texcoords[index] = glm::vec2(static_cast<float>(i) / static_cast<float>(horizontal_split_count),
+										 static_cast<float>(j) / static_cast<float>(vertical_split_count));
+			++index;
+		}
+	}
+
+	auto index_sets = std::vector<glm::uvec3>(2u * horizontal_split_count * vertical_split_count);
+	index = 0u;
+	for (unsigned int i = 0u; i < horizontal_split_count; ++i) {
+		for (unsigned int j = 0u; j < vertical_split_count; ++j) {
+			index_sets[index] = glm::uvec3(vertical_vertices_count * i + j,
+										   vertical_vertices_count * (i + 1u) + j,
+										   vertical_vertices_count * (i + 1u) + (j + 1u));
+			++index;
+
+			index_sets[index] = glm::uvec3(vertical_vertices_count * i + j,
+										   vertical_vertices_count * (i + 1u) + (j + 1u),
+										   vertical_vertices_count * i + (j + 1u));
+			++index;
+		}
+	}
+
+	bonobo::mesh_data data;
+	glGenVertexArrays(1, &data.vao);
+	glBindVertexArray(data.vao);
+
+	glGenBuffers(1, &data.bo);
+	glBindBuffer(GL_ARRAY_BUFFER, data.bo);
+
+	auto const vertices_size = static_cast<GLsizeiptr>(vertices.size() * sizeof(glm::vec3));
+	auto const texcoords_size = static_cast<GLsizeiptr>(texcoords.size() * sizeof(glm::vec2));
+	glBufferData(GL_ARRAY_BUFFER, vertices_size + texcoords_size, nullptr, GL_STATIC_DRAW);
+
+	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, vertices.data());
+	glBufferSubData(GL_ARRAY_BUFFER, vertices_size, texcoords_size, texcoords.data());
+
+	glEnableVertexAttribArray(static_cast<unsigned int>(bonobo::shader_bindings::vertices));
+	glVertexAttribPointer(static_cast<unsigned int>(bonobo::shader_bindings::vertices), 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<GLvoid const*>(0x0));
+
+	glEnableVertexAttribArray(static_cast<unsigned int>(bonobo::shader_bindings::texcoords));
+	glVertexAttribPointer(static_cast<unsigned int>(bonobo::shader_bindings::texcoords), 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<GLvoid const*>(vertices_size));
+
+	glGenBuffers(1, &data.ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(index_sets.size() * sizeof(glm::uvec3)), index_sets.data(), GL_STATIC_DRAW);
+
+	data.indices_nb = static_cast<GLsizei>(index_sets.size() * 3u);
+
+	glBindVertexArray(0u);
+	glBindBuffer(GL_ARRAY_BUFFER, 0u);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0u);
+
+	return data;
+}
+
+bonobo::mesh_data
 parametric_shapes::createQuad(float const width, float const height,
                               unsigned int const horizontal_split_count,
                               unsigned int const vertical_split_count)
@@ -18,7 +92,7 @@ parametric_shapes::createQuad(float const width, float const height,
 		glm::vec3(0.0f,  0.0f,   0.0f),
 		glm::vec3(width, 0.0f,   0.0f),
 		glm::vec3(width, height, 0.0f),
-		glm::vec3(0.0f,  height, 0.0f)
+		glm::vec3(0.0f,   height, 0.0f )
 	};
 
 	auto const index_sets = std::array<glm::uvec3, 2>{
@@ -28,11 +102,11 @@ parametric_shapes::createQuad(float const width, float const height,
 
 	bonobo::mesh_data data;
 
-	if (horizontal_split_count > 0u || vertical_split_count > 0u)
-	{
-		LogError("parametric_shapes::createQuad() does not support tesselation.");
-		return data;
-	}
+	//if (horizontal_split_count > 0u || vertical_split_count > 0u)
+	//{
+	//	LogError("parametric_shapes::createQuad() does not support tesselation.");
+	//	return data;
+	//}
 
 	//
 	// NOTE:
