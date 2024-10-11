@@ -1,7 +1,7 @@
 #version 410
 
 //uniform vec3 light_position;
-//uniform vec3 camera_position;
+uniform vec3 camera_position;
 uniform float t;
 uniform sampler2D water_map;
 uniform samplerCube cubemap;
@@ -11,15 +11,18 @@ in VS_OUT {
     vec3 vertex;
 	vec3 normal;
     mat3 TBN;
+    vec3 fV;
 } fs_in;
 
 out vec4 fColor;
 
 void main(){
+    vec3 V = normalize(fs_in.fV);
+    vec3 N = normalize(fs_in.normal);
 
     vec4 deep_color = vec4(0.0, 0.0, 0.1, 1.0);
     vec4 shallow_color = vec4(0.0, 0.5, 0.5, 1.0);
-    float facing = 1.0 - max(dot(normalize(fs_in.vertex), normalize(fs_in.normal)), 0.0);
+    float facing = 1.0 - max(dot(V, N), 0.0);
     vec4 colorwater = mix(deep_color, shallow_color, facing);
     fColor = colorwater;
 

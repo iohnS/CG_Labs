@@ -43,7 +43,7 @@ edaf80::Assignment4::run()
 	mCamera.mWorld.SetTranslate(glm::vec3(-40.0f, 14.0f, 6.0f));
 	mCamera.mWorld.LookAt(glm::vec3(0.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
-	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
+	mCamera.mMovementSpeed = glm::vec3(30.0f); // 3 m/s => 10.8 km/h
 	auto camera_position = mCamera.mWorld.GetTranslation();
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 
@@ -150,7 +150,7 @@ edaf80::Assignment4::run()
 
 	auto lastTime = std::chrono::high_resolution_clock::now();
 
-	bool pause_animation = true;
+	bool pause_animation = false;
 	bool use_orbit_camera = false;
 	std::int32_t quad_program_index = 0;
 	auto cull_mode = bonobo::cull_mode_t::disabled;

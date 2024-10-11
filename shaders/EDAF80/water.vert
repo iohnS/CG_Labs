@@ -14,6 +14,7 @@ out VS_OUT {
     vec3 vertex;
 	vec3 normal;
     mat3 TBN;
+    vec3 fV;
 } vs_out;
 
 struct WaveConfig {
@@ -24,7 +25,7 @@ struct WaveConfig {
     float sharpness;
 };
 
-float alpha(vec2 direction, float amplitude, float frequency, float phase, float sharpness, float time){
+float alpha(vec2 direction, float frequency, float phase, float sharpness, float time){
     return pow(sin((vertex.x * direction.x + vertex.z * direction.y) * frequency + phase * time) * 0.5 + 0.5, sharpness);
 }
 
@@ -35,9 +36,10 @@ vec3 calcWave(in WaveConfig wc){
     float sharpness = wc.sharpness;
     vec2 direction = wc.direction;
 
-    float w = amplitude * alpha(direction, amplitude, frequency, phase, sharpness, t);
-    float x = 0.5 * sharpness * frequency * amplitude * alpha(direction, amplitude, frequency, phase, sharpness-1, t) * cos((vertex.x * direction[0] + vertex.z * direction[1]) * frequency + phase * t)*vertex.x;
-    float z = 0.5 * sharpness * frequency * amplitude * alpha(direction, amplitude, frequency, phase, sharpness-1, t) * cos((vertex.x * direction[0] + vertex.z * direction[1]) * frequency + phase * t)*vertex.z;
+    float w = amplitude * alpha(direction, frequency, phase, sharpness, t);
+    float displacement = amplitude * cos((vertex.x * direction.x + vertex.z * direction.y) * frequency + phase * t);
+    float x = direction.x * displacement * alpha(direction, frequency, phase, sharpness, t-1);
+    float z = direction.y * displacement * alpha(direction, frequency, phase, sharpness, t-1);
     return vec3(w, x, z);
 }
 
@@ -64,14 +66,18 @@ void main(){
 
     vec3 displaced_vertex = vertex;
     displaced_vertex.y += y;
+    
     vs_out.vertex = vec3(vertex_model_to_world * vec4(displaced_vertex, 1.0));
     vs_out.normal = vec3(normal_model_to_world * vec4(normal, 0.0));
 
+    vec3 worldPos = vec3(vertex_model_to_world * vec4(vertex, 1.0));
+    vs_out.fV = camera_position - worldPos;
+
     vec3 T = vec3(1.0, res.x, 0.0);  
     vec3 B = vec3(0.0, res.z, 1.0);
-    vec3 N = cross(T, B);
-
+    vec3 N = vec3(-res.x, -res.z, 1.0);
+    
     vs_out.TBN = mat3(T, B, N);
 
-    gl_Position = vertex_world_to_clip * vertex_model_to_world * vec4(vertex, 1.0);
+    gl_Position = vertex_world_to_clip * vertex_model_to_world * vec4(displaced_vertex, 1.0);
 }
