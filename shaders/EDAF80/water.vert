@@ -7,14 +7,16 @@ uniform mat4 vertex_model_to_world;
 uniform mat4 normal_model_to_world;
 uniform mat4 vertex_world_to_clip;
 uniform vec3 camera_position;
+uniform vec3 light_position;
 uniform float t;
 
 out VS_OUT {
 	vec2 tex_coord;
     vec3 vertex;
-	vec3 normal;
-    mat3 TBN;
+    mat4 TBN;
     vec3 fV;
+    vec3 fN;
+    vec3 fL;
 } vs_out;
 
 struct WaveConfig {
@@ -59,6 +61,9 @@ vec3 animate(){
 
 void main(){
     vs_out.tex_coord = tex_coord;
+    vec3 worldPos = vec3(vertex_model_to_world * vec4(vertex, 1.0));
+    vs_out.fV = camera_position - worldPos;
+    vs_out.fL = light_position - worldPos;
 
     vec3 res = animate();
     float y = res.y;
@@ -68,16 +73,14 @@ void main(){
     displaced_vertex.y += y;
     
     vs_out.vertex = vec3(vertex_model_to_world * vec4(displaced_vertex, 1.0));
-    vs_out.normal = vec3(normal_model_to_world * vec4(normal, 0.0));
+    vs_out.fN = vec3(normal_model_to_world * vec4(normal, 0.0));
 
-    vec3 worldPos = vec3(vertex_model_to_world * vec4(vertex, 1.0));
-    vs_out.fV = camera_position - worldPos;
 
-    vec3 T = vec3(1.0, res.x, 0.0);  
-    vec3 B = vec3(0.0, res.z, 1.0);
-    vec3 N = vec3(-res.x, -res.z, 1.0);
+    vec4 T = vec4(1.0, res.x, 0.0, 1.0);  
+    vec4 B = vec4(0.0, res.z, 1.0, 1.0);
+    vec4 N = vec4(-res.x, -res.z, 1.0, 1.0);
     
-    vs_out.TBN = mat3(T, B, N);
+    vs_out.TBN = mat4(T, B, N, vec4(0.0));
 
     gl_Position = vertex_world_to_clip * vertex_model_to_world * vec4(displaced_vertex, 1.0);
 }
