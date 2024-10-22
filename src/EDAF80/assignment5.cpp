@@ -5,8 +5,8 @@
 #include "core/Bonobo.h"
 #include "core/FPSCamera.h"
 #include "core/helpers.hpp"
-#include "core/ShaderProgramManager.hpp"
 #include "core/node.hpp"
+#include "core/ShaderProgramManager.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
@@ -40,22 +40,22 @@ void
 edaf80::Assignment5::run()
 {
 	// Set up the camera
-	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 6.0f));
+	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 3.0f, 50.0f));
+	mCamera.mWorld.LookTowards(glm::vec3(1.0f, 0.0f, 0.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
-	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
+	mCamera.mMovementSpeed = glm::vec3(15.0f); // 3 m/s => 10.8 km/h
 	auto camera_position = mCamera.mWorld.GetTranslation();
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
-
 	float elapsed_time_s = 0.0f;
 
-	auto const set_uniforms = [&camera_position, &light_position, &elapsed_time_s](GLuint program) {
+	auto const set_uniforms = [&camera_position, &light_position, &elapsed_time_s](GLuint program){
 		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
 		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
 		glUniform1f(glGetUniformLocation(program, "t"), elapsed_time_s);
-		};
+	};
 
-	// Create the shader programs
 	ShaderProgramManager program_manager;
+
 	GLuint fallback_shader = 0u;
 	program_manager.CreateAndRegisterProgram("Fallback",
 	                                         { { ShaderType::vertex, "common/fallback.vert" },
@@ -66,10 +66,6 @@ edaf80::Assignment5::run()
 		return;
 	}
 
-	//
-	// Todo: Insert the creation of other shader programs.
-	//       (Check how it was done in assignment 3.)
-	//
 	GLuint skybox_shader = 0u;
 	program_manager.CreateAndRegisterProgram("Skybox",
 		{ { ShaderType::vertex, "EDAF80/skybox.vert" },
@@ -78,9 +74,15 @@ edaf80::Assignment5::run()
 	if (skybox_shader == 0u)
 		LogError("Failed to load skybox shader");
 
-	//
-	// Todo: Load your geometry
-	//
+
+	GLuint water_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Water",
+	                                         { { ShaderType::vertex, "EDAF80/water.vert" },
+	                                           { ShaderType::fragment, "EDAF80/water.frag" } },
+	                                         water_shader);
+	if (water_shader == 0u)
+		LogError("Failed to load water shader");
+
 	auto skybox_shape = parametric_shapes::createSphere(20.0f, 10u, 10u);
 	if (skybox_shape.vao == 0u) {
 		LogError("Failed to retrieve the mesh for the skybox");
@@ -99,6 +101,27 @@ edaf80::Assignment5::run()
 	skybox.set_program(&skybox_shader, set_uniforms);
 	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 
+	auto quad_shape = parametric_shapes::createTessQuad(100.0f, 100.0f, 1000u, 1000u);
+	if (quad_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the quad");
+		return;
+	}
+
+	Node quad;
+	quad.set_geometry(quad_shape);
+	quad.add_texture("normal_map", bonobo::loadTexture2D(config::resources_path("textures/waves.png")), GL_TEXTURE_2D);
+	quad.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+	quad.set_program(&water_shader, set_uniforms);
+
+	//
+	// Todo: Insert the creation of other shader programs.
+	//       (Check how it was done in assignment 3.)
+	//
+
+	//
+	// Todo: Load your geometry
+	//
+
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -112,11 +135,13 @@ edaf80::Assignment5::run()
 	bool show_basis = false;
 	float basis_thickness_scale = 1.0f;
 	float basis_length_scale = 1.0f;
+	std::int32_t quad_program_index = 0;
 
 	while (!glfwWindowShouldClose(window)) {
 		auto const nowTime = std::chrono::high_resolution_clock::now();
 		auto const deltaTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(nowTime - lastTime);
 		lastTime = nowTime;
+		elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count();
 
 		auto& io = ImGui::GetIO();
 		inputHandler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
@@ -164,12 +189,10 @@ edaf80::Assignment5::run()
 
 
 		if (!shader_reload_failed) {
-			//
-			// Todo: Render all your geometry here.
-			//
 			glDisable(GL_DEPTH_TEST);
 			skybox.render(mCamera.GetViewToClipMatrix() * glm::mat4(glm::mat3(mCamera.GetWorldToViewMatrix())));
 			glEnable(GL_DEPTH_TEST);
+			quad.render(mCamera.GetWorldToClipMatrix());
 		}
 
 
@@ -184,6 +207,10 @@ edaf80::Assignment5::run()
 			ImGui::Checkbox("Show basis", &show_basis);
 			ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale, 0.0f, 100.0f);
 			ImGui::SliderFloat("Basis length scale", &basis_length_scale, 0.0f, 100.0f);
+			auto quad_selection_result = program_manager.SelectProgram("Demo sphere", quad_program_index);
+			if (quad_selection_result.was_selection_changed) {
+				quad.set_program(quad_selection_result.program, set_uniforms);
+			}
 		}
 		ImGui::End();
 

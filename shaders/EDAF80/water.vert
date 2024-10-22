@@ -48,8 +48,8 @@ vec3 calcWave(in WaveConfig wc){
 }
 
 vec3 animate(){
-    WaveConfig config1 = WaveConfig(vec2(-1.0, 0.0), 1.0, 0.2, 0.5, 2.0);
-    WaveConfig config2 = WaveConfig(vec2(-0.7, 0.7), 0.5, 0.4, 1.3, 2.0);
+    WaveConfig config1 = WaveConfig(vec2(-1.0, 0.0), 1, 0.8, 0.5, 2.0);
+    WaveConfig config2 = WaveConfig(vec2(-0.7, 0.7), 0.3, 0.4, 1.3, 2.0);
 
     vec3 res1 = calcWave(config1);
     vec3 res2 = calcWave(config2);
