@@ -1,11 +1,14 @@
 #include "assignment5.hpp"
+#include "parametric_shapes.hpp"
 
 #include "config.hpp"
 #include "core/Bonobo.h"
 #include "core/FPSCamera.h"
 #include "core/helpers.hpp"
 #include "core/ShaderProgramManager.hpp"
+#include "core/node.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <tinyfiledialogs.h>
 
@@ -40,6 +43,16 @@ edaf80::Assignment5::run()
 	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 6.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
 	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
+	auto camera_position = mCamera.mWorld.GetTranslation();
+	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
+
+	float elapsed_time_s = 0.0f;
+
+	auto const set_uniforms = [&camera_position, &light_position, &elapsed_time_s](GLuint program) {
+		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		glUniform1f(glGetUniformLocation(program, "t"), elapsed_time_s);
+		};
 
 	// Create the shader programs
 	ShaderProgramManager program_manager;
@@ -57,10 +70,34 @@ edaf80::Assignment5::run()
 	// Todo: Insert the creation of other shader programs.
 	//       (Check how it was done in assignment 3.)
 	//
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Skybox",
+		{ { ShaderType::vertex, "EDAF80/skybox.vert" },
+		  { ShaderType::fragment, "EDAF80/skybox.frag" } },
+		skybox_shader);
+	if (skybox_shader == 0u)
+		LogError("Failed to load skybox shader");
 
 	//
 	// Todo: Load your geometry
 	//
+	auto skybox_shape = parametric_shapes::createSphere(20.0f, 10u, 10u);
+	if (skybox_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the skybox");
+	}
+
+	GLuint cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("cubemaps/Ocean/left.jpg"),
+		config::resources_path("cubemaps/Ocean/right.jpg"),
+		config::resources_path("cubemaps/Ocean/top.jpg"),
+		config::resources_path("cubemaps/Ocean/bottom.jpg"),
+		config::resources_path("cubemaps/Ocean/back.jpg"),
+		config::resources_path("cubemaps/Ocean/front.jpg"));
+
+	Node skybox;
+	skybox.set_geometry(skybox_shape);
+	skybox.set_program(&skybox_shader, set_uniforms);
+	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -130,6 +167,9 @@ edaf80::Assignment5::run()
 			//
 			// Todo: Render all your geometry here.
 			//
+			glDisable(GL_DEPTH_TEST);
+			skybox.render(mCamera.GetViewToClipMatrix() * glm::mat4(glm::mat3(mCamera.GetWorldToViewMatrix())));
+			glEnable(GL_DEPTH_TEST);
 		}
 
 
