@@ -14,6 +14,9 @@
 
 #include <clocale>
 #include <stdexcept>
+#include <algorithm>
+#include <cmath>
+#include <list>
 
 edaf80::Assignment5::Assignment5(WindowManager& windowManager) :
 	mCamera(0.5f * glm::half_pi<float>(),
@@ -36,17 +39,28 @@ edaf80::Assignment5::~Assignment5()
 	bonobo::deinit();
 }
 
+const float START_POSITION = 50.0f;
+const float MOVEMENT_DELTA = 5.0f;
+const float ACCELERATION = 1000.0f;
+const int N_OBSTACLES = 10;
+
 void
 edaf80::Assignment5::run()
 {
 	// Set up the camera
-	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 3.0f, 50.0f));
-	mCamera.mWorld.LookTowards(glm::vec3(1.0f, 0.0f, 0.0f));
+	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 5.0f, 50.0f));
+	mCamera.mWorld.LookTowards(glm::vec3(1.0f, -0.1f, 0.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
 	mCamera.mMovementSpeed = glm::vec3(15.0f); // 3 m/s => 10.8 km/h
 	auto camera_position = mCamera.mWorld.GetTranslation();
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 	float elapsed_time_s = 0.0f;
+
+	int hp = 10;
+	
+	float surfer_position = START_POSITION;
+	float surfer_velocity = 0.0f;
+	float surfer_acceleration = 0.0f;
 
 	auto const set_uniforms = [&camera_position, &light_position, &elapsed_time_s](GLuint program){
 		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
@@ -63,6 +77,16 @@ edaf80::Assignment5::run()
 	                                         fallback_shader);
 	if (fallback_shader == 0u) {
 		LogError("Failed to load fallback shader");
+		return;
+	}
+
+	GLuint tissue_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Tissue",
+	                                         { { ShaderType::vertex, "EDAF80/tissue.vert" },
+	                                           { ShaderType::fragment, "EDAF80/tissue.frag" } },
+	                                         tissue_shader);
+	if (tissue_shader == 0u){
+		LogError("Failed to load tissue shader");
 		return;
 	}
 
@@ -87,6 +111,21 @@ edaf80::Assignment5::run()
 	if (skybox_shape.vao == 0u) {
 		LogError("Failed to retrieve the mesh for the skybox");
 	}
+
+	GLuint phong_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Phong",
+		{ { ShaderType::vertex, "EDAF80/phong.vert" },
+		  { ShaderType::fragment, "EDAF80/phong.frag" } },
+		phong_shader);
+	if (phong_shader == 0u)
+		LogError("Failed to load phong shader");
+
+	bool use_normal_mapping = true;
+	auto const phong_set_uniforms = [&use_normal_mapping,&light_position,&camera_position](GLuint program){
+		glUniform1i(glGetUniformLocation(program, "use_normal_mapping"), use_normal_mapping ? 1 : 0);
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
+	};
 
 	GLuint cubemap = bonobo::loadTextureCubeMap(
 		config::resources_path("cubemaps/Ocean/left.jpg"),
@@ -113,6 +152,50 @@ edaf80::Assignment5::run()
 	quad.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 	quad.set_program(&water_shader, set_uniforms);
 
+	
+	auto tissue_shape = parametric_shapes::createTessQuad(5.0f, 5.0f, 100u, 100u);
+	
+	
+	Node tissue;
+	tissue.set_geometry(tissue_shape);
+	tissue.set_program(&tissue_shader, set_uniforms);
+
+
+
+	GLuint phong_cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg"),
+		config::resources_path("textures/leather_red_02_coll1_2k.jpg")
+	);
+
+	bonobo::material_data sphere_material;
+	sphere_material.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+	sphere_material.diffuse = glm::vec3(0.7f, 0.2f, 0.4f);
+	sphere_material.specular = glm::vec3(1.0f, 1.0f, 1.0f);
+	sphere_material.shininess = 10.0f;
+
+
+	auto sphere_shape = parametric_shapes::createSphere(1.5f, 20u, 20u);
+	if (sphere_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the demo sphere");
+		return;
+	}
+
+	Node sphere;
+	sphere.set_geometry(sphere_shape);
+	sphere.set_material_constants(sphere_material);
+	sphere.set_program(&phong_shader, phong_set_uniforms);
+	//sphere.add_texture("phong_cubemap", phong_cubemap, GL_TEXTURE_CUBE_MAP);
+	sphere.add_texture("normal_map", bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_nor_2k.jpg")), GL_TEXTURE_2D);
+	sphere.add_texture("diffuse_map", bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_coll1_2k.jpg")), GL_TEXTURE_2D);
+	sphere.add_texture("specular_map", bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_rough_2k.jpg")), GL_TEXTURE_2D);
+	sphere.get_transform().SetTranslate(glm::vec3(10.0f, 2.0f, surfer_position));
+
+
+
 	//
 	// Todo: Insert the creation of other shader programs.
 	//       (Check how it was done in assignment 3.)
@@ -137,6 +220,17 @@ edaf80::Assignment5::run()
 	float basis_length_scale = 1.0f;
 	std::int32_t quad_program_index = 0;
 
+	Node tissues[N_OBSTACLES];
+	for(int i = 0; i < 10; i++){
+		Node new_tissue = tissue;
+		tissues[i] = new_tissue;
+	}
+	std::list<Node>::iterator it;
+	int tissue_index = 0;
+	float tissue_latest_spawn = 0.0f;
+
+	float latest_dmg = 0.0f;
+
 	while (!glfwWindowShouldClose(window)) {
 		auto const nowTime = std::chrono::high_resolution_clock::now();
 		auto const deltaTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(nowTime - lastTime);
@@ -144,11 +238,12 @@ edaf80::Assignment5::run()
 		elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count();
 
 		auto& io = ImGui::GetIO();
-		inputHandler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
+		// inputHandler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
+		inputHandler.SetUICapture(io.WantCaptureMouse, false);
 
 		glfwPollEvents();
 		inputHandler.Advance();
-		mCamera.Update(deltaTimeUs, inputHandler);
+		// mCamera.Update(deltaTimeUs, inputHandler);
 
 		if (inputHandler.GetKeycodeState(GLFW_KEY_R) & JUST_PRESSED) {
 			shader_reload_failed = !program_manager.ReloadAllPrograms();
@@ -181,11 +276,42 @@ edaf80::Assignment5::run()
 		//
 		// Todo: If you need to handle inputs, you can do it here
 		//
+		if (inputHandler.GetKeycodeState(GLFW_KEY_A) & JUST_PRESSED) {
+			// surfer_position -= MOVEMENT_DELTA;
+			surfer_acceleration -= ACCELERATION;
+		} else if (inputHandler.GetKeycodeState(GLFW_KEY_D) & JUST_PRESSED) {
+			// surfer_position += MOVEMENT_DELTA;
+			surfer_acceleration += ACCELERATION;
+		} else {
+			surfer_acceleration = 0;
+		}
+
+		if (surfer_acceleration == 0) {
+			if (surfer_velocity < 0) {
+				surfer_velocity += 0.5f;
+			} else {
+				surfer_velocity -= 0.5f;
+			}
+		}
+		float dt = std::chrono::duration<float>(deltaTimeUs).count();
+		surfer_velocity += surfer_acceleration * dt;
+		surfer_position += surfer_velocity * dt;
+		surfer_position = std::clamp(surfer_position, START_POSITION - MOVEMENT_DELTA, START_POSITION + MOVEMENT_DELTA);
 
 
 		mWindowManager.NewImGuiFrame();
 
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+		// if 5 seconds have passed:
+		if (elapsed_time_s - tissue_latest_spawn > 2.0f) {
+				// spawn a new tissue at a random offset from start position
+				tissues[tissue_index % N_OBSTACLES].get_transform().SetTranslate(glm::vec3(100.0f, 2.0f, START_POSITION + static_cast<float>((rand() % 21) - 10)));
+				
+				// and update variables tracking time and current tissue in list
+				tissue_latest_spawn = elapsed_time_s;
+				tissue_index++;
+			}
 
 
 		if (!shader_reload_failed) {
@@ -193,6 +319,31 @@ edaf80::Assignment5::run()
 			skybox.render(mCamera.GetViewToClipMatrix() * glm::mat4(glm::mat3(mCamera.GetWorldToViewMatrix())));
 			glEnable(GL_DEPTH_TEST);
 			quad.render(mCamera.GetWorldToClipMatrix());
+			sphere.get_transform().SetTranslate(glm::vec3(10.0f, 2.0f, surfer_position));
+			sphere.render(mCamera.GetWorldToClipMatrix());
+
+			// for all tissues, move them towards the player
+			for (int i = 0; i < N_OBSTACLES; i++) {
+				glm::vec3 paper_pos = tissues[i].get_transform().GetTranslation();
+				glm::vec3 player_pos = sphere.get_transform().GetTranslation();
+				paper_pos.x -= MOVEMENT_DELTA-4.5f;
+				tissues[i].get_transform().SetTranslate(paper_pos);
+				
+				if (std::hypot((paper_pos.x + 2.5) - player_pos.x, (paper_pos.z + 2.5) - player_pos.z) < 1.5 + 5) {
+					if(elapsed_time_s - latest_dmg > 1.0f){
+						latest_dmg = elapsed_time_s;
+						hp--;
+						std::cout << "HP: " << hp << std::endl;
+					}
+					if(hp == 0){
+						std::cout << "Game Over!" << std::endl;
+						return;
+					}
+				}
+				
+				tissues[i].render(mCamera.GetWorldToClipMatrix());
+			}
+
 		}
 
 
@@ -207,10 +358,10 @@ edaf80::Assignment5::run()
 			ImGui::Checkbox("Show basis", &show_basis);
 			ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale, 0.0f, 100.0f);
 			ImGui::SliderFloat("Basis length scale", &basis_length_scale, 0.0f, 100.0f);
-			auto quad_selection_result = program_manager.SelectProgram("Demo sphere", quad_program_index);
-			if (quad_selection_result.was_selection_changed) {
-				quad.set_program(quad_selection_result.program, set_uniforms);
-			}
+			//auto quad_selection_result = program_manager.SelectProgram("Program", quad_program_index);
+			//if (quad_selection_result.was_selection_changed) {
+			//	quad.set_program(quad_selection_result.program, set_uniforms);
+			//}
 		}
 		ImGui::End();
 
