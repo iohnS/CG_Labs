@@ -47,7 +47,7 @@ void main(){
 
 
     vec4 deep_color = vec4(0.0, 0.0, 0.1, 1.0);
-    vec4 shallow_color = vec4(0.0, 0.5, 0.5, 1.0);
+    vec4 shallow_color = vec4(0.0, 0.3, 0.4, 1.0);
     float facing = 1.0 - max(dot(V, N), 0.0);
     vec4 colorwater = mix(deep_color, shallow_color, facing);
     

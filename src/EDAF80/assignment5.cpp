@@ -61,6 +61,7 @@ edaf80::Assignment5::run()
 	float surfer_position = START_POSITION;
 	float surfer_velocity = 0.0f;
 	float surfer_acceleration = 0.0f;
+	float spawn_rate = 2.0f;
 
 	auto const set_uniforms = [&camera_position, &light_position, &elapsed_time_s](GLuint program){
 		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
@@ -140,7 +141,7 @@ edaf80::Assignment5::run()
 	skybox.set_program(&skybox_shader, set_uniforms);
 	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 
-	auto quad_shape = parametric_shapes::createTessQuad(100.0f, 100.0f, 1000u, 1000u);
+	auto quad_shape = parametric_shapes::createTessQuad(300.0f, 500.0f, 2000u, 2000u);
 	if (quad_shape.vao == 0u) {
 		LogError("Failed to retrieve the mesh for the quad");
 		return;
@@ -151,6 +152,7 @@ edaf80::Assignment5::run()
 	quad.add_texture("normal_map", bonobo::loadTexture2D(config::resources_path("textures/waves.png")), GL_TEXTURE_2D);
 	quad.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 	quad.set_program(&water_shader, set_uniforms);
+	quad.get_transform().SetTranslate(glm::vec3(0.0f, 0.0f, -250.0f));
 
 	
 	auto tissue_shape = parametric_shapes::createTessQuad(5.0f, 5.0f, 100u, 100u);
@@ -304,13 +306,14 @@ edaf80::Assignment5::run()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 		// if 5 seconds have passed:
-		if (elapsed_time_s - tissue_latest_spawn > 2.0f) {
+		if (elapsed_time_s - tissue_latest_spawn > spawn_rate) {
 				// spawn a new tissue at a random offset from start position
 				tissues[tissue_index % N_OBSTACLES].get_transform().SetTranslate(glm::vec3(100.0f, 2.0f, START_POSITION + static_cast<float>((rand() % 21) - 10)));
 				
 				// and update variables tracking time and current tissue in list
 				tissue_latest_spawn = elapsed_time_s;
 				tissue_index++;
+				spawn_rate = std::max(0.4f, spawn_rate - 0.1f);
 			}
 
 
@@ -329,14 +332,18 @@ edaf80::Assignment5::run()
 				paper_pos.x -= MOVEMENT_DELTA-4.5f;
 				tissues[i].get_transform().SetTranslate(paper_pos);
 				
-				if (std::hypot((paper_pos.x + 2.5) - player_pos.x, (paper_pos.z + 2.5) - player_pos.z) < 1.5 + 5) {
+				if (std::hypot((paper_pos.x + 2.5) - player_pos.x, (paper_pos.z + 2.5) - player_pos.z) < 1.5 + 3) {
 					if(elapsed_time_s - latest_dmg > 1.0f){
 						latest_dmg = elapsed_time_s;
 						hp--;
 						std::cout << "HP: " << hp << std::endl;
+						
+						// move tissue out of view
+						tissues[i].get_transform().SetTranslate(glm::vec3(-10.f, 0.0f, 0.0f));
 					}
 					if(hp == 0){
 						std::cout << "Game Over!" << std::endl;
+						std::cout << "Score: " << static_cast<int>(elapsed_time_s * 10) << "!" << std::endl;
 						return;
 					}
 				}
